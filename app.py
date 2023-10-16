@@ -187,6 +187,7 @@ except NameError:
                     sr_mix = wave_out + y_padded
                     sr_mix = sr_mix / normalize
                     output_file = '3.wav'
+                    sf.write(output_file, sr_mix.astype(np.int16), h2.sampling_rate)
                     return output_file
                    
     from IPython.display import clear_output
