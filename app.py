@@ -1,4 +1,6 @@
 import os
+from flask import Flask, request, jsonify, send_file
+
 from tqdm.notebook import tqdm
 from IPython.display import clear_output
 from os.path import exists, join, basename, splitext
@@ -15,6 +17,7 @@ sys.path.append(project_name)
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 logging.getLogger('numba').setLevel(logging.WARNING)
 logging.getLogger('librosa').setLevel(logging.WARNING)
+app = Flask(__name__)
 
 # Check if Initialized
 try:
@@ -189,6 +192,8 @@ except NameError:
                     output_file = '3.wav'
                     sf.write(output_file, sr_mix.astype(np.int16), h2.sampling_rate)
                     return output_file
+
+                    
                    
     from IPython.display import clear_output
     clear_output()
@@ -201,35 +206,20 @@ max_duration =  20#@param {type:"integer"}
 model.decoder.max_decoder_steps = max_duration * 80
 stop_threshold = 0.5 #@param {type:"number"}
 model.decoder.gate_threshold = stop_threshold
-superres_strength = 0.4 #@param {type:"number"}
+superres_strength = 1 #@param {type:"number"}
+@app.route('/synthesize', methods=['POST'])
+def synthesize():
+    text = request.json.get('text', '')
+    if not text:
+        return jsonify({'error': 'No text provided'}), 400
+    
+    try:
+        audio_path = end_to_end_infer(text, not pronounciation_dictionary)
+        # Return the generated audio file to the client
+        return send_file(audio_path, as_attachment=True, download_name='generated_audio.wav')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
-# print(f"Current Config:\npronounciation_dictionary: {pronounciation_dictionary}\nmax_duration (in seconds): {max_duration}\nstop_threshold: {stop_threshold}\nsuperres_strength: {superres_strength}\n\n")
-
-# time.sleep(1)
-# print("Enter/Paste your text.")
-# contents = []
-# while True:
-#     try:
-#         print("-"*50)
-#         line = input()
-#         if line == "":
-#             continue
-#         end_to_end_infer(line, not pronounciation_dictionary)
-#     except EOFError:
-#         break
-#     except KeyboardInterrupt:
-#         print("Stopping...")
-#         break
-import gradio as gr
-
-import gradio as gr
-
-def interface_fn(text):
-    audio_path = end_to_end_infer(text, not pronounciation_dictionary)
-    return audio_path
-
-iface = gr.Interface(fn=interface_fn, inputs="text", outputs=gr.outputs.Audio(type="filepath", label="Download .wav file"))
-iface.launch(share=True)
-
-
-
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
